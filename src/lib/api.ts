@@ -13,15 +13,15 @@ const OPEN_ROUTER_KEYS: string[] = [
   localStorage.getItem('openrouter_key') || '',
 ].filter(Boolean);
 const OPEN_ROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const PRIMARY_MODEL = 'nvidia/nemotron-3.5-lightning:free';
+const PRIMARY_MODEL = 'cohere/north-mini-code:free';
 const FALLBACK_MODELS = [
-  'nvidia/nemotron-3.5-lightning:free',
-  'liquid/lfm-2.5-2.6b:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'recursive/flint-v1.0:free',
-  'dots-studio/dots-3-note-preview:free',
   'cohere/north-mini-code:free',
   'poolside/laguna-s-2.1:free',
+  'dots-studio/dots-3-note-preview:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'liquid/lfm-2.5-2.6b:free',
+  'recursive/flint-v1.0:free',
 ];
 
 export interface IngestItem {

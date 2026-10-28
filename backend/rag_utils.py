@@ -360,15 +360,25 @@ def query_chroma(collection, embedder, question: str, top_k: int = 6, conversati
 def strip_think_tags(txt: str) -> str:
     if not txt:
         return ""
-    # DeepSeek-R1 may output <think>…</think> sections; remove them
+    # 1. DeepSeek-R1 / Qwen <think>…</think> tags
     txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL|re.IGNORECASE)
-    # Strip Gemini/Thinking preamble if model outputs raw internal thought
-    if "Here's a thinking process:" in txt:
-        parts = re.split(r"\n\s*(?:###|---|\*\*\*|In summary|To explain|Here is|Source code is|Definition:)", txt, maxsplit=1)
-        if len(parts) > 1:
-            matched = re.search(r"\n\s*(?:###|---|\*\*\*|In summary|To explain|Here is|Source code is|Definition:)", txt)
-            if matched:
-                txt = txt[matched.start():].lstrip("-\n*# ")
-    # Remove markdown double asterisks (**) as requested
+
+    # 2. Reasoning models internal thinking monologue (e.g. "Here's a thinking process: ... Let's draft: ...")
+    if "thinking process" in txt.lower():
+        # Look for the start of the actual drafted answer
+        draft_match = re.search(r"(?:Let's draft:?|Draft:?|Final Answer:?|Here is the (?:explanation|response|answer):?)\s*[\"']?", txt, re.IGNORECASE)
+        if draft_match:
+            txt = txt[draft_match.end():].rstrip("\"' \n\r")
+        else:
+            # Filter out bullet points that are analyzing the prompt
+            paragraphs = txt.split("\n\n")
+            clean_paras = [
+                p for p in paragraphs
+                if not re.search(r"^\s*(?:Here's a thinking process|Analyze User Input|Identify the Core Task|Analyze the Context|Formulate the Answer|\d+\.\s+Analyze|\d+\.\s+Identify|\d+\.\s+Formulate)", p, re.IGNORECASE)
+            ]
+            if clean_paras:
+                txt = "\n\n".join(clean_paras)
+
+    # 3. Remove markdown double asterisks (**) as requested
     txt = txt.replace("**", "")
     return txt.strip()

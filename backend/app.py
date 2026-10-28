@@ -101,21 +101,9 @@ def build_llm_prompt(context_items, question: str, conversation: list | None = N
 
     lines.append(
         f"ROLE: You are NoteMind AI. {selected_persona}\n"
-        "The student uploads learning materials (PDF/text/YouTube transcripts). "
-        "These materials are chunked using RAG. Your job is to TEACH strictly from these chunks.\n\n"
-
-        "BEHAVIOR RULES:\n"
-        "1. ALWAYS assume the uploaded content is the student's study material or textbook.\n"
-        "2. ALWAYS analyze the available CONTEXT (chunks) before answering.\n"
-        "3. ALWAYS answer using the context FIRST. Treat it as the main syllabus.\n"
-        "4. For ANY question (MCQ, summary, explanation, general question), "
-        "always try to relate the answer to the uploaded content’s topic.\n"
-        "5. If the context is incomplete, vague, or unrelated, infer the TOPIC from it and still answer.\n"
-        "6. ONLY if the answer truly cannot be derived from context, use general knowledge — NEVER say 'no context'.\n"
-        "7. NEVER repeat refusal-like lines from the context (such as 'I cannot answer', 'no context provided').\n"
-        "8. NEVER tell the user that context is missing. ALWAYS provide a useful final answer.\n"
-        "9. MCQs, summaries, short notes, and explanations are ALWAYS allowed.\n"
-        "10. If the user asks a general question like 'Define X', STILL use the content as the primary source.\n"
+        "Teach the student clearly and thoroughly based on their study material below. "
+        "Answer the question directly with clear educational structure. "
+        "Do NOT output any thinking process, meta-analysis, or internal planning. Start directly with your explanation."
     )
 
     # ----------------------------------------------------------
@@ -142,7 +130,7 @@ def build_llm_prompt(context_items, question: str, conversation: list | None = N
 
             lines.append(f"[{title}#{idx}] {content}\n")
     else:
-        lines.append("[No retrieved chunks — You MUST still answer using general knowledge.]\n")
+        lines.append("[No retrieved chunks — Answer using foundational knowledge.]\n")
 
     # ----------------------------------------------------------
     # CONVERSATION HISTORY
@@ -165,8 +153,7 @@ def build_llm_prompt(context_items, question: str, conversation: list | None = N
     # ----------------------------------------------------------
     lines.append(
         "\n### FINAL ANSWER:\n"
-        "Answer as NoteMind AI, a helpful intelligent tutor. Use the uploaded study content FIRST, "
-        "infer the topic if needed, and give the best educational answer possible."
+        "Provide your clear, well-structured educational answer below (no markdown asterisks, no internal monologue):"
     )
 
     return "\n".join(lines)
@@ -176,14 +163,13 @@ def run_llm(prompt: str) -> str:
     # 1. Primary: OpenRouter API with automatic key rotation
     keys = get_openrouter_keys()
     models = [
-        OPENROUTER_MODEL,
+        "cohere/north-mini-code:free",
+        "poolside/laguna-s-2.1:free",
+        "dots-studio/dots-3-note-preview:free",
+        "google/gemma-4-26b-a4b-it:free",
         "nvidia/nemotron-3.5-lightning:free",
         "liquid/lfm-2.5-2.6b:free",
-        "google/gemma-4-26b-a4b-it:free",
-        "recursive/flint-v1.0:free",
-        "dots-studio/dots-3-note-preview:free",
-        "cohere/north-mini-code:free",
-        "poolside/laguna-s-2.1:free"
+        "recursive/flint-v1.0:free"
     ]
 
     for key in keys:
@@ -196,10 +182,14 @@ def run_llm(prompt: str) -> str:
                 payload = {
                     "model": model,
                     "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are NoteMind AI tutor. Provide a direct, well-structured explanation. Never output thinking processes or internal monologues."
+                        },
                         {"role": "user", "content": prompt}
                     ],
                     "temperature": 0.3,
-                    "max_tokens": 1024
+                    "max_tokens": 2048
                 }
                 resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=40)
                 if resp.status_code == 200:
