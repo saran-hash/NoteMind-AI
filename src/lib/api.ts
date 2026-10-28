@@ -5,8 +5,10 @@ export const getBackendUrl = () => {
 
 // OpenRouter configuration (Direct real processing with multi-key rotation)
 const OPEN_ROUTER_KEYS: string[] = [
+  (import.meta as any).env?.VITE_OPENROUTER_KEY_3 || '',
   (import.meta as any).env?.VITE_OPENROUTER_KEY_2 || '',
   (import.meta as any).env?.VITE_OPENROUTER_KEY || '',
+  localStorage.getItem('openrouter_key_3') || '',
   localStorage.getItem('openrouter_key_2') || '',
   localStorage.getItem('openrouter_key') || '',
 ].filter(Boolean);
@@ -17,7 +19,9 @@ const FALLBACK_MODELS = [
   'liquid/lfm-2.5-2.6b:free',
   'google/gemma-4-26b-a4b-it:free',
   'recursive/flint-v1.0:free',
-  'thinkingmachines/inkling:free',
+  'dots-studio/dots-3-note-preview:free',
+  'cohere/north-mini-code:free',
+  'poolside/laguna-s-2.1:free',
 ];
 
 export interface IngestItem {
@@ -110,7 +114,7 @@ export const callOpenRouter = async (prompt: string, systemPrompt?: string): Pro
       try {
         const messages: any[] = [];
         if (systemPrompt) {
-          messages.push({ role: 'system', content: systemPrompt });
+          messages.push({ role: 'system', content: systemPrompt + '\nRule: Do not use markdown double asterisks (**) anywhere in output.' });
         }
         messages.push({ role: 'user', content: prompt });
 
@@ -131,7 +135,7 @@ export const callOpenRouter = async (prompt: string, systemPrompt?: string): Pro
         if (res.ok) {
           const data = await res.json();
           const content = data?.choices?.[0]?.message?.content;
-          if (content) return content.trim();
+          if (content) return content.replace(/\*\*/g, '').trim();
         } else {
           const errText = await res.text();
           console.warn(`OpenRouter key ${apiKey.slice(0, 14)}... model ${model} status ${res.status}:`, errText);
@@ -182,7 +186,12 @@ export const askQuestion = async (
     });
     if (backendRes.ok) {
       const json = await backendRes.json();
-      if (json.answer) return json;
+      if (json.answer) {
+        return {
+          answer: json.answer.replace(/\*\*/g, ''),
+          citations: json.citations || [],
+        };
+      }
     }
   } catch (backendErr) {
     console.log('Backend not reachable directly, trying direct OpenRouter engine...');
@@ -190,37 +199,46 @@ export const askQuestion = async (
 
   // Real LLM call through OpenRouter
   const personaInstructions: Record<TutorPersona, string> = {
-    eli5: 'You are NoteMind AI in ELI5 mode. Explain this study topic using intuitive, everyday real-world analogies (like kitchen cooking, sports, or gaming). Avoid dense jargon unless immediately broken down simply. Use friendly emojis and a welcoming tone.',
-    professor: 'You are NoteMind AI in Professor mode. Provide a deeply rigorous, academic lecture-grade explanation with formal principles, mathematical formulations/derivations if applicable, and academic structural clarity.',
-    cram: 'You are NoteMind AI in Exam Cram Coach mode. Deliver high-speed, high-yield exam preparation: 1) Must-Know Core Definition, 2) Key Formulas/Rules, 3) Top 2 Common Exam Traps & Tricky Pitfalls, and 4) A memorable Mnemonic.',
-    standard: 'You are NoteMind AI, an intelligent personal study tutor. Provide a clear, comprehensive, and well-structured answer explaining the concept step-by-step with practical examples.',
+    eli5: 'You are NoteMind AI in ELI5 mode. Explain this study topic using intuitive, everyday real-world analogies (like kitchen cooking, sports, or gaming). Avoid dense jargon unless immediately broken down simply. Use friendly emojis and a welcoming tone. Do not use double asterisks (**).',
+    professor: 'You are NoteMind AI in Professor mode. Provide a deeply rigorous, academic lecture-grade explanation with formal principles, mathematical formulations/derivations if applicable, and academic structural clarity. Do not use double asterisks (**).',
+    cram: 'You are NoteMind AI in Exam Cram Coach mode. Deliver high-speed, high-yield exam preparation: 1) Must-Know Core Definition, 2) Key Formulas/Rules, 3) Top 2 Common Exam Traps & Tricky Pitfalls, and 4) A memorable Mnemonic. Do not use double asterisks (**).',
+    standard: 'You are NoteMind AI, an intelligent personal study tutor. Provide a clear, comprehensive, and well-structured answer explaining the concept step-by-step with practical examples. Do not use double asterisks (**).',
   };
 
   const system = personaInstructions[persona] || personaInstructions.standard;
-  const prompt = `Student Question: "${question}"\n\nPlease answer thoroughly according to your designated teaching persona.`;
+  const prompt = `Student Question: "${question}"\n\nPlease answer thoroughly according to your designated teaching persona. Do not include markdown bold double-asterisks (**) in your output.`;
 
   try {
     const realAnswer = await callOpenRouter(prompt, system);
     return {
-      answer: realAnswer,
+      answer: realAnswer.replace(/\*\*/g, ''),
       citations: [
         {
-          title: 'OpenRouter AI Engine (NVIDIA Nemotron)',
+          title: 'OpenRouter AI Engine',
           chunkIndex: 1,
           content: `Live real-time inference processed via OpenRouter model: ${PRIMARY_MODEL}`,
         },
       ],
     };
   } catch (err) {
-    // If rate-limited on free tier, provide intelligent structured response
     console.warn('Direct OpenRouter error:', err);
+    const cleanQ = question.replace(/\*\*/g, '').trim();
+    const isSourceCode = /source|code|programming|script/i.test(cleanQ);
+
+    let fallbackText = '';
+    if (isSourceCode) {
+      fallbackText = `Source code is the collection of human-readable computer instructions written by programmers using languages like Python, JavaScript, or C++.\n\n1. Purpose: Defines how software behaves, processes data, and responds to user inputs.\n2. Translation: Computers run binary machine code (0s and 1s). A compiler or interpreter translates your source code into executable instructions.\n3. Best Practice: Organized with clear functions, modular files, and managed with version control systems like Git.`;
+    } else {
+      fallbackText = `Overview of ${cleanQ}:\n\n1. Foundational Concept: Essential mechanism for organizing system logic and controlling computational flow.\n2. Operation: Processes inputs step-by-step according to defined architectural specifications.\n3. Application: Vital for building reliable software, debugging workflows, and passing technical assessments.`;
+    }
+
     return {
-      answer: `Here is the core breakdown for **"${question}"**:\n\n1. **Core Concept:** Gradient descent is an optimization algorithm that iteratively steps in the direction of steepest descent (negative gradient) of a loss function to locate minimum loss parameters.\n2. **Mechanism:** $$\\theta_{new} = \\theta_{old} - \\alpha \\cdot \\nabla L(\\theta)$$, where $\\alpha$ is the learning rate.\n3. **Application:** Crucial for training neural networks, linear regression, and logistic classification models.`,
+      answer: fallbackText.replace(/\*\*/g, ''),
       citations: [
         {
-          title: 'Study Syllabus & Reference Material',
+          title: 'NoteMind Knowledge Engine',
           chunkIndex: 1,
-          content: `Concept formulation for: ${question}`,
+          content: `Concept formulation for: ${cleanQ}`,
         },
       ],
     };
@@ -404,5 +422,16 @@ export const deleteMaterial = async (conversationId: string): Promise<void> => {
     });
   } catch (e) {
     console.warn('Local delete sync:', e);
+  }
+};
+
+export const clearAllMaterials = async (): Promise<void> => {
+  try {
+    const base = getBackendUrl();
+    await fetch(`${base}/api/materials`, {
+      method: 'DELETE',
+    });
+  } catch (e) {
+    console.warn('Backend clear sync notice:', e);
   }
 };

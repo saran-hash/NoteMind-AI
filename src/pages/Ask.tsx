@@ -141,9 +141,10 @@ export default function Ask() {
         selectedConversationIds.length > 0 ? selectedConversationIds : undefined,
         currentPersona
       );
+      const cleanAnswer = (response.answer || '').replace(/\*\*/g, '');
       const assistantMessage: Message = {
         role: 'assistant',
-        content: response.answer,
+        content: cleanAnswer,
         citations: response.citations,
         persona: currentPersona,
       };
@@ -152,7 +153,7 @@ export default function Ask() {
 
       // Auto-read in voice if user used voice
       if (isListening && ttsSupported) {
-        speak(response.answer.slice(0, 200));
+        speak(cleanAnswer.slice(0, 200));
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to get answer');
@@ -169,7 +170,7 @@ export default function Ask() {
     if (isSpeaking) {
       stop();
     } else {
-      speak(text);
+      speak((text || '').replace(/\*\*/g, ''));
     }
   };
 
@@ -280,7 +281,7 @@ export default function Ask() {
                           {PERSONAS.find((p) => p.id === msg.persona)?.label || 'Tutor'}
                         </div>
                       )}
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content.replace(/\*\*/g, '')}</p>
 
                       {/* Source Citations Badges */}
                       {msg.role === 'assistant' && msg.citations && msg.citations.length > 0 && (

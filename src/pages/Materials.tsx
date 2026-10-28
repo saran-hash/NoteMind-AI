@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ingestMaterials, type IngestItem } from '@/lib/api';
+import { ingestMaterials, deleteMaterial, clearAllMaterials, type IngestItem } from '@/lib/api';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,7 +14,7 @@ export default function Materials() {
   const [files, setFiles] = useState<File[]>([]);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { addConversation, conversations, setCurrentConversation } = useConversationHistory();
+  const { addConversation, conversations, setCurrentConversation, deleteConversation, clearAllConversations } = useConversationHistory();
   const navigate = useNavigate();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +84,22 @@ export default function Materials() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!window.confirm('Clear all indexed study materials and reset vector database? This cannot be undone.')) {
+      return;
+    }
+    await clearAllMaterials();
+    clearAllConversations();
+    toast.success('All study materials cleared');
+  };
+
+  const handleDeleteItem = async (convId: string) => {
+    if (!window.confirm('Remove this material?')) return;
+    await deleteMaterial(convId);
+    deleteConversation(convId);
+    toast.success('Material removed');
+  };
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
       {/* Header */}
@@ -104,13 +120,23 @@ export default function Materials() {
               <CardTitle className="text-sm font-semibold text-slate-900">
                 Indexed Materials ({conversations.length})
               </CardTitle>
-              <Badge variant="outline" className="text-[10px] text-slate-600 border-slate-200 bg-slate-50 font-normal">
-                ChromaDB Synced
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearAll}
+                  className="h-6 text-[11px] text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 font-normal"
+                >
+                  Clear All
+                </Button>
+                <Badge variant="outline" className="text-[10px] text-slate-600 border-slate-200 bg-slate-50 font-normal">
+                  ChromaDB Synced
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-2 pt-3">
-            {conversations.slice(0, 3).map((conv) => (
+            {conversations.map((conv) => (
               <div
                 key={conv.id}
                 className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs"
@@ -141,6 +167,14 @@ export default function Materials() {
                     className="h-7 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-200/60"
                   >
                     Ask Tutor
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteItem(conv.id)}
+                    className="h-7 text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                  >
+                    Delete
                   </Button>
                 </div>
               </div>

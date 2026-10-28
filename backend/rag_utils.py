@@ -360,4 +360,6 @@ def query_chroma(collection, embedder, question: str, top_k: int = 6, conversati
 def strip_think_tags(txt: str) -> str:
     # DeepSeek-R1 may output <think>…</think> sections; remove them
     txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL|re.IGNORECASE)
+    # Remove markdown double asterisks (**) as requested
+    txt = txt.replace("**", "")
     return txt.strip()

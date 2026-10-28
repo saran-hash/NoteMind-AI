@@ -25,15 +25,23 @@ export const useConversationHistory = () => {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored);
-      setConversations(parsed.map((c: any) => ({
-        ...c,
-        createdAt: new Date(c.createdAt),
-        messages: c.messages.map((m: any) => ({
-          ...m,
-          timestamp: new Date(m.timestamp),
-        })),
-      })));
+      try {
+        const parsed = JSON.parse(stored);
+        const cleaned = parsed.map((c: any) => ({
+          ...c,
+          createdAt: new Date(c.createdAt),
+          messages: (c.messages || []).map((m: any) => ({
+            ...m,
+            content: (m.content || '').replace(/\*\*/g, ''),
+            timestamp: new Date(m.timestamp),
+          })),
+        }));
+        setConversations(cleaned);
+        // Persist the cleaned messages back to storage
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+      } catch (e) {
+        console.warn('Failed parsing conversation history:', e);
+      }
     }
   }, []);
 
@@ -63,6 +71,7 @@ export const useConversationHistory = () => {
   };
 
   const addMessage = (conversationId: string, message: Omit<Message, 'id' | 'timestamp'>) => {
+    const cleanContent = (message.content || '').replace(/\*\*/g, '');
     const updated = conversations.map((conv) => {
       if (conv.id === conversationId) {
         return {
@@ -71,6 +80,7 @@ export const useConversationHistory = () => {
             ...conv.messages,
             {
               ...message,
+              content: cleanContent,
               id: Date.now().toString(),
               timestamp: new Date(),
             },
@@ -106,7 +116,17 @@ export const useConversationHistory = () => {
   };
 
   const deleteConversation = (id: string) => {
+    if (currentConversationId === id) {
+      setCurrentConversation(null);
+    }
     saveConversations(conversations.filter((c) => c.id !== id));
+  };
+
+  const clearAllConversations = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(CURRENT_KEY);
+    setConversations([]);
+    setCurrentConversationId(null);
   };
 
   return {
@@ -114,6 +134,7 @@ export const useConversationHistory = () => {
     addConversation,
     addMessage,
     deleteConversation,
+    clearAllConversations,
     currentConversationId,
     setCurrentConversation,
     getCurrentConversation,
