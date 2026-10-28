@@ -1,5 +1,5 @@
-# NoteMind AI 🧠✨
-> **Intelligent Multi-Persona RAG Study Companion & Interactive Learning Lab**
+# NoteMind AI : AI Study Lab & Multi-Persona Tutor 🧠✨
+> **Next-Generation Autonomous Student Study Lab & Multi-Persona AI Tutor**
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)

@@ -33,7 +33,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
                   </span>
                 </div>
                 <span className="text-[11px] text-muted-foreground hidden sm:inline -mt-0.5">
-                  Intelligent RAG Study Suite
+                  AI Study Lab & Multi-Persona Tutor
                 </span>
               </div>
             </Link>
