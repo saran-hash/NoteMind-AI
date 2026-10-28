@@ -7,10 +7,36 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies & Build
 node_modules
 dist
 dist-ssr
 *.local
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables & Secrets
+.env
+.env.*
+backend/.env
+backend/.env.*
+!backend/.env.example
+!.env.example
+
+# Database & Upload Storage
+chroma_db/
+chroma_db_corrupt_bak/
+backend/uploads/
+uploads/
+*.sqlite3
+*.bin
 
 # Editor directories and files
 .vscode/*

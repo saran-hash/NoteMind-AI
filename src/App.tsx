@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import Materials from "./pages/Materials";
 import Ask from "./pages/Ask";
+import StudyLab from "./pages/StudyLab";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -22,6 +23,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Materials />} />
             <Route path="/ask" element={<Ask />} />
+            <Route path="/study-lab" element={<StudyLab />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

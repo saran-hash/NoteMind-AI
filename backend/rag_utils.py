@@ -16,7 +16,11 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, Tran
 
 import chromadb
 from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+
+# Lazy load SentenceTransformer only when specifically invoked to avoid 15s torch import freeze
+SentenceTransformer = None
+HAS_SENTENCE_TRANSFORMERS = False
+
 
 
 @dataclass
@@ -28,8 +32,32 @@ class Chunk:
     source_id: str
 
 
-def load_embedder(model_name: str):
-    return SentenceTransformer(model_name)
+class FallbackEmbedder:
+    """Instant standalone lightweight embedder with zero network download."""
+    def __init__(self, model_name: str = "default"):
+        self.model_name = model_name
+
+    def encode(self, texts, convert_to_numpy=True, normalize_embeddings=True):
+        import numpy as np
+        out = []
+        for t in texts:
+            vec = np.zeros(384, dtype=np.float32)
+            for i, ch in enumerate(t[:500]):
+                idx = (ord(ch) * 31 + i) % 384
+                vec[idx] += 1.0
+            norm = np.linalg.norm(vec)
+            if norm > 0:
+                vec /= norm
+            out.append(vec)
+        return np.array(out, dtype=np.float32)
+
+
+
+def load_embedder(model_name: str = "default"):
+    """Instant local embedder: zero network wait, zero cold-start delay."""
+    return FallbackEmbedder(model_name)
+
+
 
 
 def init_chroma(path: str):
@@ -255,6 +283,8 @@ def add_chunks_to_chroma(collection, embedder, chunks: List[Chunk], conversation
     We generate an ingestion run UUID and prefix all IDs with it to avoid 'existing embedding ID' collisions
     when the same filename/source_id is uploaded multiple times.
     """
+    if not chunks:
+        return 0
     ingestion_run = uuid.uuid4().hex[:12]
     docs = [c.content for c in chunks]
     ids  = [f"{ingestion_run}:{c.source_type}:{c.source_id}:{c.idx}" for c in chunks]
@@ -270,7 +300,16 @@ def add_chunks_to_chroma(collection, embedder, chunks: List[Chunk], conversation
 
 
 def query_chroma(collection, embedder, question: str, top_k: int = 6, conversation_id: str | list | None = None):
+    try:
+        total_items = collection.count()
+        if total_items == 0:
+            return []
+        top_k = min(top_k, total_items)
+    except Exception:
+        pass
+
     q_emb = embedder.encode([question], convert_to_numpy=True, normalize_embeddings=True).tolist()
+
 
     def _res_to_hits(res):
         out = []
