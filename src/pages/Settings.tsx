@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Settings as SettingsIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function Settings() {
@@ -30,8 +29,7 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <SettingsIcon className="h-5 w-5" />
+          <CardTitle>
             Backend Configuration
           </CardTitle>
           <CardDescription>Set the URL for your Flask + Ollama backend</CardDescription>

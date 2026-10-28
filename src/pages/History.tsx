@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, MessageSquare } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
 import { format } from 'date-fns';
 
@@ -17,8 +17,7 @@ export default function History() {
       {conversations.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">No conversations yet. Start asking questions!</p>
+            <p className="text-muted-foreground text-sm">No conversations yet. Start asking questions!</p>
           </CardContent>
         </Card>
       ) : (

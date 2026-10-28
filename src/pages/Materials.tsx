@@ -4,18 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Upload,
-  Link as LinkIcon,
-  Loader2,
-  FileText,
-  Sparkles,
-  Zap,
-  ArrowRight,
-  Layers,
-  BookOpen,
-  CheckCircle2,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ingestMaterials, type IngestItem } from '@/lib/api';
 import { useConversationHistory } from '@/hooks/useConversationHistory';
@@ -96,41 +85,39 @@ export default function Materials() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-12">
-      {/* Hero Header */}
+    <div className="max-w-3xl mx-auto space-y-6 pb-12">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
-          Upload Learning Materials
-          <Sparkles className="h-5 w-5 text-primary" />
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Learning Materials
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Build your personal RAG knowledge base from PDFs, plain text notes, and YouTube video transcripts
+        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          Upload PDF documents, lecture notes, or YouTube video transcripts
         </p>
       </div>
 
-      {/* Active Knowledge Bases Carousel/List */}
+      {/* Active Knowledge Bases List */}
       {conversations.length > 0 && (
-        <Card className="border-purple-500/20 bg-gradient-to-r from-card to-purple-950/20">
-          <CardHeader className="pb-3">
+        <Card className="border border-border bg-white shadow-sm">
+          <CardHeader className="pb-3 border-b border-border/60">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                <BookOpen className="h-4 w-4 text-purple-400" />
-                Indexed Study Materials ({conversations.length})
+              <CardTitle className="text-sm font-semibold text-slate-900">
+                Indexed Materials ({conversations.length})
               </CardTitle>
-              <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/40 bg-emerald-500/10">
-                ChromaDB Vector Synced
+              <Badge variant="outline" className="text-[10px] text-slate-600 border-slate-200 bg-slate-50 font-normal">
+                ChromaDB Synced
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-2 pt-3">
             {conversations.slice(0, 3).map((conv) => (
               <div
                 key={conv.id}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-card/60 border border-border/80 text-xs"
+                className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs"
               >
                 <div className="flex items-center gap-2 truncate pr-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                  <span className="font-medium text-foreground truncate">{conv.title}</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="font-medium text-slate-800 truncate">{conv.title}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <Button
@@ -140,9 +127,8 @@ export default function Materials() {
                       setCurrentConversation(conv.id);
                       navigate('/study-lab');
                     }}
-                    className="h-7 text-[11px] gap-1 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
+                    className="h-7 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-200/60"
                   >
-                    <Layers className="h-3 w-3" />
                     Study Lab
                   </Button>
                   <Button
@@ -152,9 +138,8 @@ export default function Materials() {
                       setCurrentConversation(conv.id);
                       navigate('/ask');
                     }}
-                    className="h-7 text-[11px] gap-1 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                    className="h-7 text-xs text-slate-700 hover:text-slate-900 hover:bg-slate-200/60"
                   >
-                    <ArrowRight className="h-3 w-3" />
                     Ask Tutor
                   </Button>
                 </div>
@@ -165,24 +150,22 @@ export default function Materials() {
       )}
 
       {/* Upload Files Card */}
-      <Card className="border border-border/80 shadow-sm">
+      <Card className="border border-border bg-white shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Upload className="h-5 w-5 text-purple-400" />
-            Upload PDF & Text Documents
+          <CardTitle className="text-base font-semibold text-slate-900">
+            PDF & Text Documents
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs">
             Select lecture slides, research papers, or syllabus documents
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-border/80 rounded-xl p-6 text-center hover:border-purple-500/50 transition-colors bg-card/40">
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <Label htmlFor="file-upload" className="cursor-pointer font-semibold text-sm text-foreground">
-                Click to browse or drop files here
+            <div className="border border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-slate-400 transition-colors bg-slate-50/50">
+              <Label htmlFor="file-upload" className="cursor-pointer font-medium text-xs sm:text-sm text-slate-800 hover:underline">
+                Choose files to upload
               </Label>
-              <p className="text-xs text-muted-foreground mt-1">Supports PDF & Plain Text (.txt)</p>
+              <p className="text-xs text-slate-500 mt-1">Supports PDF & Plain Text (.txt)</p>
               <Input
                 id="file-upload"
                 type="file"
@@ -194,17 +177,16 @@ export default function Materials() {
             </div>
             {files.length > 0 && (
               <div className="space-y-2 pt-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Ready to Ingest ({files.length}):
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  Selected Files ({files.length}):
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {files.map((file, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center gap-2 text-xs p-2.5 rounded-lg bg-muted/60 border border-border truncate"
+                      className="text-xs p-2.5 rounded-lg bg-slate-50 border border-slate-200 truncate font-mono text-slate-700"
                     >
-                      <FileText className="h-4 w-4 text-purple-400 shrink-0" />
-                      <span className="truncate">{file.name}</span>
+                      {file.name}
                     </div>
                   ))}
                 </div>
@@ -215,26 +197,25 @@ export default function Materials() {
       </Card>
 
       {/* YouTube Video Card */}
-      <Card className="border border-border/80 shadow-sm">
+      <Card className="border border-border bg-white shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <LinkIcon className="h-5 w-5 text-rose-400" />
+          <CardTitle className="text-base font-semibold text-slate-900">
             YouTube Video Transcripts
           </CardTitle>
-          <CardDescription>
-            Paste any lecture or educational video URL to ingest its captions into your syllabus
+          <CardDescription className="text-xs">
+            Paste any lecture or educational video URL to ingest its captions
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div>
-            <Label htmlFor="youtube-url" className="text-xs font-medium">YouTube URL</Label>
+            <Label htmlFor="youtube-url" className="text-xs font-medium text-slate-700">YouTube URL</Label>
             <Input
               id="youtube-url"
               type="url"
-              placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+              placeholder="https://www.youtube.com/watch?v=..."
               value={youtubeUrl}
               onChange={(e) => setYoutubeUrl(e.target.value)}
-              className="mt-1.5 text-sm"
+              className="mt-1.5 text-sm bg-white border-slate-200"
             />
           </div>
         </CardContent>
@@ -245,18 +226,15 @@ export default function Materials() {
         onClick={handleProcess}
         disabled={isProcessing || (files.length === 0 && !youtubeUrl)}
         size="lg"
-        className="w-full bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:via-indigo-500 hover:to-blue-500 text-white font-semibold shadow-lg shadow-purple-500/20 h-12 text-sm"
+        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium shadow-sm h-10 text-xs sm:text-sm transition-colors"
       >
         {isProcessing ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Chunking & Ingesting into Vector DB...
+            Indexing Materials...
           </>
         ) : (
-          <>
-            <Sparkles className="mr-2 h-4 w-4" />
-            Process Materials & Generate Vector Index
-          </>
+          'Process Materials'
         )}
       </Button>
     </div>

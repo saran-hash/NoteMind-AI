@@ -6,19 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import {
   Mic,
   MicOff,
-  Send,
   Volume2,
   VolumeX,
   Loader2,
-  BookOpen,
   Trash2,
-  Sparkles,
-  GraduationCap,
-  Zap,
-  Lightbulb,
-  ExternalLink,
-  Bot,
-  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { askQuestion, deleteMaterial, type Citation, type TutorPersona } from '@/lib/api';
@@ -35,34 +26,26 @@ interface Message {
   persona?: TutorPersona;
 }
 
-const PERSONAS: { id: TutorPersona; label: string; icon: any; desc: string; color: string }[] = [
+const PERSONAS: { id: TutorPersona; label: string; desc: string }[] = [
   {
     id: 'standard',
     label: 'Standard Tutor',
-    icon: Bot,
     desc: 'Structured & comprehensive',
-    color: 'border-blue-300 text-blue-800 bg-blue-50',
   },
   {
     id: 'eli5',
     label: 'ELI5 Mode',
-    icon: Lightbulb,
-    desc: 'Intuitive analogies & emojis',
-    color: 'border-amber-300 text-amber-900 bg-amber-50',
+    desc: 'Simple analogies & clear steps',
   },
   {
     id: 'professor',
     label: 'Professor Mode',
-    icon: GraduationCap,
     desc: 'Academic rigor & theory',
-    color: 'border-purple-300 text-purple-900 bg-purple-50',
   },
   {
     id: 'cram',
     label: 'Exam Cram Coach',
-    icon: Zap,
     desc: 'Traps, mnemonics & high-yield',
-    color: 'border-emerald-300 text-emerald-900 bg-emerald-50',
   },
 ];
 
@@ -193,14 +176,13 @@ export default function Ask() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       {/* Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/80 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
             Ask NoteMind Tutor
-            <Sparkles className="h-5 w-5 text-purple-400" />
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Multi-persona interactive RAG tutor with grounded source citations
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Multi-persona interactive study tutor with grounded source citations
           </p>
         </div>
 
@@ -209,14 +191,12 @@ export default function Ask() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10"
+              className="text-xs border-slate-200 text-slate-700 hover:bg-slate-50"
             >
-              <Zap className="h-3.5 w-3.5 text-purple-400" />
-              Open Study Lab
-              <ExternalLink className="h-3 w-3" />
+              Study Lab
             </Button>
           </Link>
-          <div className="flex items-center gap-1.5 bg-muted/60 px-2 py-1 rounded-lg border border-border text-xs">
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
             <label className="text-muted-foreground font-medium">Material:</label>
             <select
               value={currentConversationId || ''}
@@ -231,8 +211,8 @@ export default function Ask() {
               ))}
             </select>
             {currentConversationId && (
-              <button onClick={handleDeleteCurrent} title="Delete material" className="text-destructive hover:opacity-80">
-                <Trash2 className="h-3.5 w-3.5" />
+              <button onClick={handleDeleteCurrent} title="Delete material" className="text-destructive hover:opacity-80 text-xs font-medium ml-1">
+                Delete
               </button>
             )}
           </div>
@@ -241,15 +221,11 @@ export default function Ask() {
 
       {/* AI Tutor Personas Selector */}
       <div className="space-y-2">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-          <span>Tutor Persona:</span>
-          <span className="text-[10px] lowercase text-purple-400 font-normal">
-            (changes AI teaching tone & depth)
-          </span>
+        <div className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <span>Tutor Mode:</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {PERSONAS.map((p) => {
-            const Icon = p.icon;
             const isSelected = currentPersona === p.id;
             return (
               <button
@@ -258,19 +234,15 @@ export default function Ask() {
                   setCurrentPersona(p.id);
                   toast.info(`Switched to ${p.label}!`);
                 }}
-                className={`p-3 rounded-xl border text-left transition-all duration-200 flex flex-col justify-between ${
+                className={`p-3 rounded-lg border text-left transition-colors flex flex-col justify-between ${
                   isSelected
-                    ? `${p.color} ring-2 ring-purple-500/50 shadow-md`
-                    : 'bg-card/70 border-border/80 hover:border-border text-muted-foreground hover:text-foreground'
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
                 }`}
               >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <Icon className="h-4 w-4" />
-                  {isSelected && <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />}
-                </div>
                 <div>
-                  <div className="text-xs font-bold">{p.label}</div>
-                  <div className="text-[10px] opacity-75 truncate">{p.desc}</div>
+                  <div className="text-xs font-semibold">{p.label}</div>
+                  <div className={`text-[11px] mt-0.5 ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>{p.desc}</div>
                 </div>
               </button>
             );
@@ -281,58 +253,49 @@ export default function Ask() {
       {/* Messages Feed */}
       <div className="space-y-4 min-h-[300px] max-h-[520px] overflow-y-auto pr-1">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center rounded-2xl border border-dashed border-border/80 bg-card/30">
-            <div className="h-12 w-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-3">
-              <Bot className="h-6 w-6" />
-            </div>
-            <h3 className="font-bold text-foreground text-base">Your NoteMind Tutor is ready</h3>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-              Ask anything, test your retention, or pick a prompt below to see how each AI persona teaches!
+          <div className="flex flex-col items-center justify-center p-12 text-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
+            <h3 className="font-semibold text-slate-900 text-sm">NoteMind Tutor</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+              Ask a question about your uploaded materials or select a prompt below.
             </p>
           </div>
         ) : (
           messages.map((msg, idx) => (
             <div
               key={idx}
-              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {msg.role === 'assistant' && (
-                <div className="h-8 w-8 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shrink-0 mt-1">
-                  <Bot className="h-4 w-4" />
-                </div>
-              )}
-
               <Card
-                className={`max-w-[85%] border shadow-sm rounded-2xl overflow-hidden ${
+                className={`max-w-[85%] border shadow-sm rounded-xl overflow-hidden ${
                   msg.role === 'user'
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-transparent'
-                    : 'bg-card/90 border-border/80'
+                    ? 'bg-slate-900 text-white border-slate-900'
+                    : 'bg-white border-slate-200 text-slate-900'
                 }`}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 space-y-2">
                       {msg.role === 'assistant' && msg.persona && (
-                        <Badge variant="outline" className="text-[10px] px-2 py-0.2 mb-1">
+                        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
                           {PERSONAS.find((p) => p.id === msg.persona)?.label || 'Tutor'}
-                        </Badge>
+                        </div>
                       )}
                       <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
 
                       {/* Source Citations Badges */}
                       {msg.role === 'assistant' && msg.citations && msg.citations.length > 0 && (
                         <div className="pt-2 border-t border-border/40 flex flex-wrap items-center gap-1.5 mt-2">
-                          <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-                            <BookOpen className="h-3 w-3 text-purple-400" /> Grounded in:
+                          <span className="text-[11px] font-medium text-slate-500">
+                            Sources:
                           </span>
                           {msg.citations.map((c, i) => (
                             <Badge
                               key={i}
                               variant="secondary"
-                              className="text-[10px] cursor-pointer hover:bg-accent"
+                              className="text-[10px] cursor-pointer hover:bg-slate-200 font-normal"
                               onClick={() => setSelectedCitations(msg.citations || [])}
                             >
-                              {c.title} · Chunk #{c.chunkIndex}
+                              {c.title} · #{c.chunkIndex}
                             </Badge>
                           ))}
                         </div>
@@ -345,11 +308,12 @@ export default function Ask() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            className="h-7 w-7 text-slate-500 hover:text-slate-900"
                             onClick={() => handleSpeak(msg.content)}
+                            title="Read Aloud"
                           >
                             {isSpeaking ? (
-                              <VolumeX className="h-3.5 w-3.5 text-rose-400" />
+                              <VolumeX className="h-3.5 w-3.5 text-rose-500" />
                             ) : (
                               <Volume2 className="h-3.5 w-3.5" />
                             )}
@@ -360,11 +324,11 @@ export default function Ask() {
                             <SheetTrigger asChild>
                               <Button
                                 variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                size="sm"
+                                className="h-7 text-xs text-slate-500 hover:text-slate-900 px-2 font-normal"
                                 onClick={() => setSelectedCitations(msg.citations || [])}
                               >
-                                <BookOpen className="h-3.5 w-3.5 text-purple-400" />
+                                Citations
                               </Button>
                             </SheetTrigger>
                             <SheetContent>
@@ -397,12 +361,6 @@ export default function Ask() {
                   </div>
                 </CardContent>
               </Card>
-
-              {msg.role === 'user' && (
-                <div className="h-8 w-8 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shrink-0 mt-1">
-                  <User className="h-4 w-4" />
-                </div>
-              )}
             </div>
           ))
         )}
@@ -410,14 +368,14 @@ export default function Ask() {
 
       {/* Quick Prompts Bar */}
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
-          <Zap className="h-3 w-3 text-amber-400" /> Quick Prompts:
+        <span className="text-[11px] font-medium text-slate-500">
+          Prompts:
         </span>
         {QUICK_PROMPTS.map((prompt, i) => (
           <button
             key={i}
             onClick={() => handleAsk(prompt)}
-            className="text-[11px] px-2.5 py-1 rounded-full bg-card hover:bg-accent border border-border/70 text-muted-foreground hover:text-foreground transition-colors"
+            className="text-[11px] px-2.5 py-1 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 transition-colors"
           >
             {prompt}
           </button>
@@ -425,19 +383,13 @@ export default function Ask() {
       </div>
 
       {/* Input Box with Voice Visualizer */}
-      <Card className="border border-border/80 shadow-lg bg-card/90 overflow-hidden">
+      <Card className="border border-border/80 shadow-sm bg-white overflow-hidden">
         <CardContent className="p-3 sm:p-4 space-y-3">
           {/* Animated Waveform when listening */}
           {isListening && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-950/30 border border-purple-500/30 text-purple-300 text-xs animate-pulse">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-800 text-xs">
               <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
               <span className="font-medium">Listening to your voice... Speak now!</span>
-              <div className="ml-auto flex items-end gap-1 h-4">
-                <span className="w-1 bg-purple-400 rounded animate-[bounce_0.6s_infinite_100ms] h-3" />
-                <span className="w-1 bg-purple-400 rounded animate-[bounce_0.6s_infinite_200ms] h-4" />
-                <span className="w-1 bg-purple-400 rounded animate-[bounce_0.6s_infinite_300ms] h-2" />
-                <span className="w-1 bg-purple-400 rounded animate-[bounce_0.6s_infinite_400ms] h-3.5" />
-              </div>
             </div>
           )}
 
@@ -456,7 +408,7 @@ export default function Ask() {
                 handleAsk();
               }
             }}
-            className="min-h-[85px] border-border/60 focus-visible:ring-purple-500/40 text-sm resize-none"
+            className="min-h-[85px] border-slate-200 focus-visible:ring-slate-400 text-sm resize-none bg-white"
           />
 
           <div className="flex items-center justify-between gap-2">
@@ -467,7 +419,7 @@ export default function Ask() {
                   size="sm"
                   onClick={handleVoiceToggle}
                   disabled={isAsking}
-                  className="gap-1.5 text-xs h-9"
+                  className="gap-1.5 text-xs h-9 border-slate-200"
                 >
                   {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
                   {isListening ? 'Stop' : 'Voice'}
@@ -481,18 +433,15 @@ export default function Ask() {
             <Button
               onClick={() => handleAsk()}
               disabled={isAsking || (!question && !transcript)}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white gap-2 h-9 px-5 text-xs font-semibold shadow-md shadow-purple-500/20"
+              className="bg-slate-900 hover:bg-slate-800 text-white h-9 px-5 text-xs font-medium shadow-sm transition-colors"
             >
               {isAsking ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   Reasoning...
                 </>
               ) : (
-                <>
-                  <Send className="h-3.5 w-3.5" />
-                  Ask Tutor
-                </>
+                'Send Question'
               )}
             </Button>
           </div>
