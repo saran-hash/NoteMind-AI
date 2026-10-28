@@ -206,8 +206,11 @@ def run_llm(prompt: str) -> str:
                     data = resp.json()
                     choices = data.get("choices", [])
                     if choices and "message" in choices[0]:
-                        raw = choices[0]["message"].get("content", "")
-                        return strip_think_tags(raw).replace("**", "")
+                        msg = choices[0]["message"]
+                        raw = msg.get("content") or msg.get("reasoning") or ""
+                        cleaned = strip_think_tags(raw).replace("**", "").strip()
+                        if cleaned:
+                            return cleaned
                 else:
                     print(f"[WARN] OpenRouter key {key[:14]}... model {model} status {resp.status_code}: {resp.text[:120]}", flush=True)
             except Exception as e:

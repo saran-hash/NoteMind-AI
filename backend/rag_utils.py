@@ -358,8 +358,17 @@ def query_chroma(collection, embedder, question: str, top_k: int = 6, conversati
 
 
 def strip_think_tags(txt: str) -> str:
+    if not txt:
+        return ""
     # DeepSeek-R1 may output <think>…</think> sections; remove them
     txt = re.sub(r"<think>.*?</think>", "", txt, flags=re.DOTALL|re.IGNORECASE)
+    # Strip Gemini/Thinking preamble if model outputs raw internal thought
+    if "Here's a thinking process:" in txt:
+        parts = re.split(r"\n\s*(?:###|---|\*\*\*|In summary|To explain|Here is|Source code is|Definition:)", txt, maxsplit=1)
+        if len(parts) > 1:
+            matched = re.search(r"\n\s*(?:###|---|\*\*\*|In summary|To explain|Here is|Source code is|Definition:)", txt)
+            if matched:
+                txt = txt[matched.start():].lstrip("-\n*# ")
     # Remove markdown double asterisks (**) as requested
     txt = txt.replace("**", "")
     return txt.strip()
