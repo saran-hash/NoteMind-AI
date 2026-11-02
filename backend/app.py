@@ -28,11 +28,7 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", DEFAULT_CORS).split(",")
 CHROMA_PATH = os.getenv("CHROMA_PATH", "./chroma_db")
 COLLECTION_NAME = os.getenv("CHROMA_COLLECTION", "study_chunks")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "deepseek-r1:7b")
-LLM_API_URL = os.getenv("LLM_API_URL")
-LLM_API_KEY = os.getenv("LLM_API_KEY")
-LLM_API_PROVIDER = os.getenv("LLM_API_PROVIDER", "")
-LLM_API_MODEL = os.getenv("LLM_API_MODEL")
+
 def get_openrouter_keys():
     backend_env = os.path.join(os.path.dirname(__file__), ".env")
     root_env = os.path.join(os.path.dirname(__file__), "..", ".env")
@@ -186,10 +182,10 @@ def run_gemini(prompt: str, model_type: str = "chat") -> str:
         raise RuntimeError("No Gemini API key configured")
 
     if model_type == "chat":
-        candidate_models = ["gemini-2.5-flash-lite", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+        candidate_models = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.5-flash"]
         max_tokens = 2048
     else:
-        candidate_models = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-flash-latest"]
+        candidate_models = ["gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"]
         max_tokens = 4096
 
     for model in candidate_models:
@@ -207,7 +203,7 @@ def run_gemini(prompt: str, model_type: str = "chat") -> str:
             }
         }
         try:
-            resp = requests.post(url, json=payload, timeout=35)
+            resp = requests.post(url, json=payload, timeout=15)
             if resp.status_code == 200:
                 data = resp.json()
                 candidates = data.get("candidates", [])
@@ -289,7 +285,7 @@ run_ollama = run_llm
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "model": OLLAMA_MODEL})
+    return jsonify({"status": "ok"})
 
 @app.route("/api/ingest", methods=["POST"])
 def ingest():
@@ -375,98 +371,18 @@ def delete_material_endpoint(conversation_id):
         print(f"[ERROR] Failed to delete material {conversation_id}: {e}")
         return jsonify({"ok": False, "error": str(e)}), 500
 
-@app.route("/api/settings/key", methods=["POST"])
-def update_api_key():
-    """Save a new OpenRouter API key directly to backend env and memory."""
-    import re
-    data = request.get_json(silent=True) or {}
-    key = (data.get("key") or "").strip()
-    if not key or not key.startswith("sk-or-v1-"):
-        return jsonify({"ok": False, "error": "Invalid OpenRouter key. Must start with 'sk-or-v1-'"}), 400
-
-    backend_dir = os.path.dirname(__file__)
-    env_paths = [
-        os.path.join(backend_dir, ".env"),
-        os.path.join(backend_dir, "..", ".env"),
-    ]
-
-    for env_path in env_paths:
-        try:
-            content = ""
-            if os.path.exists(env_path):
-                with open(env_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-            if "open_router_key_3=" in content:
-                content = re.sub(r"open_router_key_3=.*", f"open_router_key_3={key}", content)
-            else:
-                content += f"\nopen_router_key_3={key}\n"
-            with open(env_path, "w", encoding="utf-8") as f:
-                f.write(content)
-        except Exception as e:
-            print(f"[WARN] Error updating {env_path}: {e}", flush=True)
-
-    os.environ["open_router_key_3"] = key
-    os.environ["OPEN_ROUTER_KEY_3"] = key
-    print(f"[INFO] 3rd OpenRouter key registered and active: {key[:14]}...", flush=True)
-    return jsonify({"ok": True, "message": "Key saved and active!"})
-
-@app.route("/api/settings/gemini-key", methods=["POST"])
-def update_gemini_key_endpoint():
-    """Save a new Google Gemini API key directly to backend and root env files."""
-    import re
-    data = request.get_json(silent=True) or {}
-    key = (data.get("key") or "").strip()
-    if not key:
-        return jsonify({"ok": False, "error": "Gemini key cannot be empty"}), 400
-
-    backend_dir = os.path.dirname(__file__)
-    env_paths = [
-        os.path.join(backend_dir, ".env"),
-        os.path.join(backend_dir, "..", ".env"),
-    ]
-
-    for env_path in env_paths:
-        try:
-            content = ""
-            if os.path.exists(env_path):
-                with open(env_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-            if "GEMINI_API_KEY=" in content:
-                content = re.sub(r"GEMINI_API_KEY=.*", f"GEMINI_API_KEY={key}", content)
-            else:
-                content += f"\nGEMINI_API_KEY={key}\n"
-            if "Gemini_api_key=" in content:
-                content = re.sub(r"Gemini_api_key=.*", f"Gemini_api_key={key}", content)
-            else:
-                content += f"Gemini_api_key={key}\n"
-            if "VITE_GEMINI_API_KEY=" in content:
-                content = re.sub(r"VITE_GEMINI_API_KEY=.*", f"VITE_GEMINI_API_KEY={key}", content)
-            else:
-                content += f"VITE_GEMINI_API_KEY={key}\n"
-            with open(env_path, "w", encoding="utf-8") as f:
-                f.write(content)
-        except Exception as e:
-            print(f"[WARN] Error updating {env_path}: {e}", flush=True)
-
-    os.environ["GEMINI_API_KEY"] = key
-    os.environ["Gemini_api_key"] = key
-    print(f"[INFO] Gemini API key updated and active: {key[:10]}...", flush=True)
-    return jsonify({"ok": True, "message": "Gemini API key saved and active!"})
-
 def generate_topical_response(clean_q: str, persona: str, hits: list) -> str:
+    """Concise fallback if all external LLM providers are unreachable."""
     clean_q = clean_q.replace("**", "").strip()
     
-    # 1. If hits are available from student's study materials, synthesize from chunks
+    # Synthesize from local chunks if available
     if hits:
         excerpts = []
         for h in hits:
             c = h.get("content", "").strip()
             if c:
                 lines = [l.strip() for l in c.split("\n") if len(l.strip()) > 15]
-                if lines:
-                    excerpts.append("\n".join(lines[:3]))
-                else:
-                    excerpts.append(c[:250])
+                excerpts.append("\n".join(lines[:3]) if lines else c[:250])
         combined_context = "\n\n".join(excerpts[:3]).replace("**", "")
         
         if persona == "eli5":
@@ -474,143 +390,19 @@ def generate_topical_response(clean_q: str, persona: str, hits: list) -> str:
         elif persona == "professor":
             return f"Curriculum analysis for {clean_q}:\n\n{combined_context}\n\nAnalytical Overview: The material formalizes the structural mechanisms, constraints, and execution pipeline governing this domain."
         elif persona == "cram":
-            return f"EXAM CRAM NOTES: {clean_q}\n\nHigh-Yield Excerpts:\n{combined_context}\n\nExam Trap: Review specific definitions, variables, and sequence order above to avoid syntax or conceptual errors on exams!"
+            return f"EXAM CRAM NOTES: {clean_q}\n\nHigh-Yield Excerpts:\n{combined_context}\n\nExam Trap: Review specific definitions and variables above to avoid syntax or conceptual errors on exams!"
         else:
             return f"Study Breakdown for {clean_q}:\n\n{combined_context}\n\nSummary: The retrieved course materials demonstrate the core rules and execution patterns for this topic."
 
-    # 2. If no chunks, provide accurate topic-specific educational content
-    lower_q = clean_q.lower()
-    
-    # Topic: Source Code / Code / Programming
-    if any(k in lower_q for k in ["source code", "source", "code", "coding", "program"]):
-        if persona == "eli5":
-            return (
-                "Source code is like a written recipe that tells a computer what to do!\n\n"
-                "1. Humans write the recipe in readable languages like Python, JavaScript, or C++.\n"
-                "2. The computer has a translator (called a compiler or interpreter) that converts those human words into binary numbers (0s and 1s) that the computer hardware can run.\n"
-                "3. Just like following cooking steps in order, the computer executes your instructions line by line to build games, websites, and apps!"
-            )
-        elif persona == "professor":
-            return (
-                f"Formal Analysis of {clean_q}:\n\n"
-                "1. Definition: Source code is a human-readable sequence of instructions written in a formal programming language conforming to defined syntactic and semantic grammars.\n"
-                "2. Translation Pipeline: High-level source code undergoes lexical analysis, syntactic parsing (abstract syntax tree generation), and optimization before compilation into machine code or translation into intermediate bytecode.\n"
-                "3. Architectural Role: It encapsulates data structures, state machines, control flow logic, and algorithmic complexity across software systems."
-            )
-        elif persona == "cram":
-            return (
-                f"EXAM CRAM: {clean_q}\n\n"
-                "1. Core Definition: Human-written plain text containing instructions in a programming language before compilation/interpretation.\n"
-                "2. Source Code vs Machine Code: Source code = human readable (Python/C); Machine code = processor executable binary (0s and 1s).\n"
-                "3. Key Translators: Compilers convert the whole file beforehand; Interpreters translate line-by-line during runtime.\n"
-                "4. Exam Trap: Do NOT confuse source code (plain text files) with object code or binary bytecode."
-            )
-        else:
-            return (
-                f"Comprehensive Guide: {clean_q}\n\n"
-                "Source code is the foundational human-readable instructions written by software developers using programming languages such as Python, JavaScript, C++, or Java.\n\n"
-                "Key Concepts:\n"
-                "- How It Works: Computers cannot directly understand human language. A compiler or interpreter translates high-level source code into low-level machine code (binary zeros and ones) that the CPU executes.\n"
-                "- Core Structure: Typical source code includes declarations, variables, functions, conditional logic (if/else), loops, and algorithms.\n"
-                "- Maintenance and Collaboration: Teams store source code in version control systems (like Git) to track changes, review pull requests, and deploy applications."
-            )
-
-    # Topic: Gradient Descent / Optimization
-    if any(k in lower_q for k in ["gradient descent", "gradient", "optimization", "descent"]):
-        if persona == "eli5":
-            return (
-                "Imagine you are blindfolded on a foggy hill and trying to reach the very bottom of the valley!\n\n"
-                "1. You feel the slope beneath your feet with each step.\n"
-                "2. You take a step in the direction that slopes downward the steepest.\n"
-                "3. Step by step, you reach the lowest point! In AI, this is gradient descent: guiding the model step-by-step until its errors are as small as possible."
-            )
-        elif persona == "professor":
-            return (
-                f"Mathematical Formulation: {clean_q}\n\n"
-                "1. Objective: Minimize a scalar cost function J(theta) over parameter space theta in R^d.\n"
-                "2. Update Rule: theta_(t+1) = theta_t - alpha * grad(J(theta_t)), where alpha > 0 denotes the learning rate parameter.\n"
-                "3. Convergence: For convex objectives with L-Lipschitz continuous gradients, convergence to the global optimum is guaranteed given appropriate step size constraints."
-            )
-        elif persona == "cram":
-            return (
-                f"EXAM CRAM: {clean_q}\n\n"
-                "1. Core Formula: W_new = W_old - alpha * (dL/dW).\n"
-                "2. Hyperparameter: alpha is the Learning Rate. Too high = overshoot/diverge; Too low = slow convergence.\n"
-                "3. Types: Batch GD (full dataset), Stochastic GD (1 sample per step), Mini-Batch GD (balanced standard).\n"
-                "4. Exam Trap: The negative sign is critical because we move OPPOSITE to the gradient to minimize loss."
-            )
-        else:
-            return (
-                f"Overview of {clean_q}:\n\n"
-                "Gradient descent is an iterative first-order optimization algorithm used in machine learning to find the local minimum of a differentiable loss function.\n\n"
-                "Key Mechanics:\n"
-                "- The algorithm calculates the gradient (direction of steepest increase) of the loss function with respect to the model parameters.\n"
-                "- It then updates parameters in the opposite direction (negative gradient) scaled by the learning rate.\n"
-                "- Over successive epochs, this reduces predictive error and trains neural networks effectively."
-            )
-
-    # Topic: Neural Networks / Machine Learning / Deep Learning
-    if any(k in lower_q for k in ["neural", "deep learning", "machine learning", "ai", "model"]):
-        if persona == "eli5":
-            return (
-                f"Simple Explanation for {clean_q}:\n\n"
-                "Think of machine learning like teaching a child through examples rather than rigid rules!\n"
-                "- Instead of programming every single detail, you show the computer thousands of pictures of cats and dogs.\n"
-                "- The computer looks for patterns (like pointy ears and whiskers) and learns to recognize them on its own over time."
-            )
-        elif persona == "professor":
-            return (
-                f"Theoretical Foundations: {clean_q}\n\n"
-                "Machine learning provides computational methodologies to estimate functional mappings f: X -> Y parameterized by weights W, optimizing an empirical risk objective over sampled distributions.\n"
-                "Deep architectures compose multiple non-linear transformations across successive layers, learning hierarchical representations directly from raw inputs."
-            )
-        elif persona == "cram":
-            return (
-                f"EXAM CRAM: {clean_q}\n\n"
-                "1. Core Categories: Supervised (labeled data), Unsupervised (clustering/patterns), Reinforcement (rewards/penalties).\n"
-                "2. Key Metric: Loss function measures error; Accuracy/F1-score evaluates predictive performance.\n"
-                "3. Classic Exam Pitfall: High training accuracy with low validation accuracy indicates OVERFITTING."
-            )
-        else:
-            return (
-                f"Study Guide: {clean_q}\n\n"
-                "This topic forms the basis of modern automated intelligence, allowing computer systems to learn patterns and infer decisions directly from data without explicit manual programming.\n\n"
-                "Key Components:\n"
-                "- Training Data: Inputs and targets used to optimize model parameters.\n"
-                "- Architecture: The mathematical structure (e.g. layers, weights, activation functions) that processes signals.\n"
-                "- Evaluation: Testing against unseen data to verify generalization and avoid overfitting."
-            )
-
-    # Universal structured response for any other topic
+    # General conceptual fallback
     if persona == "eli5":
-        return (
-            f"Here is a simple way to understand {clean_q}:\n\n"
-            f"Think of {clean_q} like a specialized tool in a workshop. It takes in specific ingredients or information, applies clear rules step-by-step, and delivers the finished result reliably.\n\n"
-            "Key Takeaway: Break it down into what goes in (input), what happens in the middle (processing), and what comes out (output)!"
-        )
+        return f"Here is a simple way to understand {clean_q}:\n\nThink of it as taking in specific information, applying clear rules step-by-step, and producing a reliable output without unnecessary complexity."
     elif persona == "professor":
-        return (
-            f"Academic Rigor and Theoretical Analysis: {clean_q}\n\n"
-            "1. Formal Principle: This subject represents an established conceptual paradigm governed by foundational axioms and operational rules.\n"
-            "2. Structural Dynamics: The interaction of parameters, state transitions, and evaluation criteria dictates system behavior.\n"
-            "3. Application: Rigorous validation and testing are required to ensure correctness and optimal algorithmic complexity."
-        )
+        return f"Academic Overview of {clean_q}:\n\nIn computational systems, this represents a fundamental conceptual paradigm governing state management, data representations, and execution flow."
     elif persona == "cram":
-        return (
-            f"EXAM CRAM: {clean_q}\n\n"
-            f"1. Core Definition: Essential concept governing data processing, logic, and system behavior in this domain.\n"
-            "2. Top Exam Trap: Pay attention to exact definitions, edge cases, and terminology so you do not lose easy points.\n"
-            "3. FAST Strategy: Focus on the core objective, Analyze inputs/outputs, Synthesize the rule, and Test with an example."
-        )
+        return f"EXAM CRAM BREAKDOWN: {clean_q}\n\n1. Core Rule: Understand data flow, inputs, transformations, and outputs.\n2. Exam Trap: Do not confuse high-level specifications with low-level implementation details."
     else:
-        return (
-            f"Detailed Explanation: {clean_q}\n\n"
-            f"{clean_q} is a key concept that coordinates system logic, structures data, and ensures reliable execution.\n\n"
-            "Key Aspects:\n"
-            "- Purpose: Solves specific operational problems by establishing clear guidelines and predictable outputs.\n"
-            "- Mechanics: Operates through sequential stages, processing inputs and handling error states systematically.\n"
-            "- Practical Importance: Understanding this concept allows you to design better architectures, debug effectively, and master exam problems."
-        )
+        return f"{clean_q} is a foundational concept in computing, responsible for coordinating system state, managing data structures, and ensuring reliable execution."
 
 
 @app.route("/api/ask", methods=["POST"])

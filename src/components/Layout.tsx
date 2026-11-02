@@ -6,7 +6,6 @@ const navItems = [
   { path: '/ask', label: 'Tutor Chat' },
   { path: '/study-lab', label: 'Study Lab' },
   { path: '/history', label: 'History' },
-  { path: '/settings', label: 'Settings' },
 ];
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
