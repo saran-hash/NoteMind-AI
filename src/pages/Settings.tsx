@@ -8,7 +8,9 @@ import { toast } from 'sonner';
 export default function Settings() {
   const [backendUrl, setBackendUrl] = useState('http://localhost:5000');
   const [openRouterKey, setOpenRouterKey] = useState('');
+  const [geminiKey, setGeminiKey] = useState('');
   const [isSavingKey, setIsSavingKey] = useState(false);
+  const [isSavingGemini, setIsSavingGemini] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('backend_url');
@@ -19,11 +21,43 @@ export default function Settings() {
     if (key) {
       setOpenRouterKey(key);
     }
+    const gKey = localStorage.getItem('gemini_api_key') || '';
+    if (gKey) {
+      setGeminiKey(gKey);
+    }
   }, []);
 
   const handleSave = () => {
     localStorage.setItem('backend_url', backendUrl);
     toast.success('Settings saved successfully');
+  };
+
+  const handleSaveGeminiKey = async () => {
+    const trimmed = geminiKey.trim();
+    if (!trimmed) {
+      toast.error('Please enter a Google Gemini API key');
+      return;
+    }
+
+    setIsSavingGemini(true);
+    try {
+      localStorage.setItem('gemini_api_key', trimmed);
+      const res = await fetch(`${backendUrl}/api/settings/gemini-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: trimmed }),
+      });
+      if (res.ok) {
+        toast.success('Gemini API key saved and activated in backend!');
+      } else {
+        toast.success('Gemini key saved in browser storage');
+      }
+    } catch {
+      localStorage.setItem('gemini_api_key', trimmed);
+      toast.success('Gemini key saved in browser storage');
+    } finally {
+      setIsSavingGemini(false);
+    }
   };
 
   const handleSaveKey = async () => {
@@ -64,6 +98,34 @@ export default function Settings() {
         <h1 className="text-3xl font-bold text-foreground mb-2">Settings</h1>
         <p className="text-muted-foreground">Configure your backend connection and AI API keys</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Google Gemini API Key (Primary)</CardTitle>
+          <CardDescription>
+            Powers Gemini 2.5/3.5 Flash-Lite for fast, low-cost chat and Gemini Flash for comprehensive cheat sheets
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="gemini-key">Gemini API Key</Label>
+            <Input
+              id="gemini-key"
+              type="password"
+              placeholder="AQ.Ab8RN6L2wPj2..."
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value)}
+              className="mt-2 font-mono text-xs"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              Gemini Flash-Lite runs daily tutor Q&A at ~₹0.05 per question. Standard Flash generates rich executive cheat sheets.
+            </p>
+          </div>
+          <Button onClick={handleSaveGeminiKey} disabled={isSavingGemini}>
+            {isSavingGemini ? 'Saving...' : 'Save & Activate Gemini Key'}
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

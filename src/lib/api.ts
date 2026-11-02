@@ -12,6 +12,7 @@ const OPEN_ROUTER_KEYS: string[] = [
   localStorage.getItem('openrouter_key_2') || '',
   localStorage.getItem('openrouter_key') || '',
 ].filter(Boolean);
+const GEMINI_API_KEY = (import.meta as any).env?.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key') || '';
 const OPEN_ROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const PRIMARY_MODEL = 'cohere/north-mini-code:free';
 const FALLBACK_MODELS = [
@@ -107,6 +108,40 @@ const cleanJsonResponse = (text: string): string => {
   return cleaned.trim();
 };
 
+// Real Google Gemini LLM Caller (Flash-Lite for chat, Flash for cheat sheet)
+export const callGemini = async (prompt: string, model: string = 'gemini-3.5-flash-lite', systemPrompt?: string): Promise<string> => {
+  const key = GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
+  if (!key) throw new Error('No Gemini key configured');
+
+  const models = model.includes('lite')
+    ? ['gemini-2.5-flash-lite', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest']
+    : ['gemini-2.5-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
+
+  const combinedPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+
+  for (const m of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: combinedPrompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: model.includes('lite') ? 2048 : 4096 },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) return text.replace(/\*\*/g, '').trim();
+      }
+    } catch (e) {
+      console.warn(`Gemini client error for ${m}:`, e);
+    }
+  }
+  throw new Error('All Gemini models failed');
+};
+
 // Real OpenRouter LLM Caller (Safe browser headers without forbidden Referer)
 export const callOpenRouter = async (prompt: string, systemPrompt?: string): Promise<string> => {
   for (const apiKey of OPEN_ROUTER_KEYS) {
@@ -182,7 +217,7 @@ export const askQuestion = async (
     const backendRes = await fetch(`${base}/api/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, conversationIds, persona }),
+      body: JSON.stringify({ question, conversationIds, persona, topK: 3 }),
     });
     if (backendRes.ok) {
       const json = await backendRes.json();
@@ -194,10 +229,10 @@ export const askQuestion = async (
       }
     }
   } catch (backendErr) {
-    console.log('Backend not reachable directly, trying direct OpenRouter engine...');
+    console.log('Backend not reachable directly, trying direct inference engine...');
   }
 
-  // Real LLM call through OpenRouter
+  // Real LLM call through Gemini (Flash-Lite) or OpenRouter
   const personaInstructions: Record<TutorPersona, string> = {
     eli5: 'You are NoteMind AI in ELI5 mode. Explain this study topic using intuitive, everyday real-world analogies (like kitchen cooking, sports, or gaming). Avoid dense jargon unless immediately broken down simply. Use friendly emojis and a welcoming tone. Do not use double asterisks (**).',
     professor: 'You are NoteMind AI in Professor mode. Provide a deeply rigorous, academic lecture-grade explanation with formal principles, mathematical formulations/derivations if applicable, and academic structural clarity. Do not use double asterisks (**).',
@@ -209,6 +244,23 @@ export const askQuestion = async (
   const prompt = `Student Question: "${question}"\n\nPlease answer thoroughly according to your designated teaching persona. Do not include markdown bold double-asterisks (**) in your output.`;
 
   try {
+    // 1. Primary: Direct Gemini Flash-Lite
+    try {
+      const geminiAnswer = await callGemini(prompt, 'gemini-3.5-flash-lite', system);
+      return {
+        answer: geminiAnswer.replace(/\*\*/g, ''),
+        citations: [
+          {
+            title: 'Google Gemini Flash-Lite Engine',
+            chunkIndex: 1,
+            content: 'Instant, cost-efficient inference via Gemini Flash-Lite',
+          },
+        ],
+      };
+    } catch (gErr) {
+      console.log('Gemini direct unavailable, falling back to OpenRouter...', gErr);
+    }
+
     const realAnswer = await callOpenRouter(prompt, system);
     return {
       answer: realAnswer.replace(/\*\*/g, ''),
@@ -291,7 +343,12 @@ You MUST return ONLY a valid, raw JSON object (without markdown code fences or b
 }`;
 
   try {
-    const raw = await callOpenRouter(prompt);
+    let raw = '';
+    try {
+      raw = await callGemini(prompt, 'gemini-3.5-flash');
+    } catch {
+      raw = await callOpenRouter(prompt);
+    }
     const cleaned = cleanJsonResponse(raw);
     return JSON.parse(cleaned);
   } catch (e) {

@@ -159,8 +159,82 @@ def build_llm_prompt(context_items, question: str, conversation: list | None = N
     return "\n".join(lines)
 
 
-def run_llm(prompt: str) -> str:
-    # 1. Primary: OpenRouter API with automatic key rotation
+def get_gemini_key():
+    backend_env = os.path.join(os.path.dirname(__file__), ".env")
+    root_env = os.path.join(os.path.dirname(__file__), "..", ".env")
+    for env_path in [backend_env, root_env]:
+        if os.path.exists(env_path):
+            try:
+                load_dotenv(env_path, override=True)
+            except Exception:
+                pass
+    return (
+        os.getenv("GEMINI_API_KEY") or
+        os.getenv("Gemini_api_key") or
+        os.getenv("LLM_API_KEY") or
+        ""
+    ).strip()
+
+def run_gemini(prompt: str, model_type: str = "chat") -> str:
+    """
+    Call Google Gemini Generative Language API.
+    - model_type='chat': uses Gemini Flash-Lite (gemini-2.5-flash-lite / gemini-3.5-flash-lite) for instant, low-cost Q&A.
+    - model_type='complex': uses Gemini Flash (gemini-2.5-flash / gemini-3.5-flash) for comprehensive Cheat Sheets and Quizzes.
+    """
+    key = get_gemini_key()
+    if not key:
+        raise RuntimeError("No Gemini API key configured")
+
+    if model_type == "chat":
+        candidate_models = ["gemini-2.5-flash-lite", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]
+        max_tokens = 2048
+    else:
+        candidate_models = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-flash-latest"]
+        max_tokens = 4096
+
+    for model in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": prompt}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": max_tokens
+            }
+        }
+        try:
+            resp = requests.post(url, json=payload, timeout=35)
+            if resp.status_code == 200:
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if candidates and "content" in candidates[0]:
+                    parts = candidates[0]["content"].get("parts", [])
+                    texts = [p.get("text", "") for p in parts if isinstance(p, dict)]
+                    res_text = "\n".join(texts).strip()
+                    if res_text:
+                        print(f"[INFO] Gemini {model} ({model_type}) responded successfully", flush=True)
+                        return strip_think_tags(res_text).replace("**", "")
+            else:
+                print(f"[WARN] Gemini model {model} returned status {resp.status_code}: {resp.text[:120]}", flush=True)
+        except Exception as e:
+            print(f"[WARN] Gemini request error with {model}: {e}", flush=True)
+
+    raise RuntimeError("All Gemini candidate models failed")
+
+def run_llm(prompt: str, model_type: str = "chat") -> str:
+    # 1. Primary: Google Gemini API (Flash-Lite for chat, Flash for cheat sheet / complex)
+    key = get_gemini_key()
+    if key:
+        try:
+            return run_gemini(prompt, model_type=model_type)
+        except Exception as gemini_err:
+            print(f"[WARN] Gemini inference failed: {gemini_err}. Falling back to OpenRouter...", flush=True)
+
+    # 2. Secondary fallback: OpenRouter API with automatic key rotation
     keys = get_openrouter_keys()
     models = [
         "cohere/north-mini-code:free",
@@ -172,9 +246,9 @@ def run_llm(prompt: str) -> str:
         "recursive/flint-v1.0:free"
     ]
 
-    for key in keys:
+    for k in keys:
         headers = {
-            "Authorization": f"Bearer {key}",
+            "Authorization": f"Bearer {k}",
             "Content-Type": "application/json",
         }
         for model in models:
@@ -202,54 +276,11 @@ def run_llm(prompt: str) -> str:
                         if cleaned:
                             return cleaned
                 else:
-                    print(f"[WARN] OpenRouter key {key[:14]}... model {model} status {resp.status_code}: {resp.text[:120]}", flush=True)
+                    print(f"[WARN] OpenRouter key {k[:14]}... model {model} status {resp.status_code}: {resp.text[:120]}", flush=True)
             except Exception as e:
                 print(f"[WARN] OpenRouter request error with {model}: {e}", flush=True)
 
-
-    # 2. Secondary fallback: Google GenAI if configured
-    provider = (LLM_API_PROVIDER or "").lower()
-    if LLM_API_URL and LLM_API_KEY and provider in ("google", "gemini", "generativelanguage"):
-        model = LLM_API_MODEL or "gemini-1.5-flash"
-        base = LLM_API_URL.rstrip("/")
-        if "/models/" in base and ":generateContent" in base:
-            url = base
-            params = {"key": LLM_API_KEY}
-        else:
-            url = f"{base}/models/{model}:generateContent"
-            params = {"key": LLM_API_KEY}
-        payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": prompt}],
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 512,
-            },
-        }
-        try:
-            resp = requests.post(url, params=params, json=payload, timeout=60)
-            if resp.status_code == 200:
-                data = resp.json()
-                if isinstance(data, dict):
-                    candidates = data.get("candidates")
-                    if candidates and isinstance(candidates, list) and len(candidates) > 0:
-                        first = candidates[0]
-                        if isinstance(first, dict):
-                            content = first.get("content")
-                            if isinstance(content, dict):
-                                parts = content.get("parts")
-                                if isinstance(parts, list):
-                                    texts = [p.get("text", "") for p in parts if isinstance(p, dict)]
-                                    if texts:
-                                        return strip_think_tags("\n".join(texts))
-        except Exception as e:
-            print(f"[WARN] Google GenAI failed: {e}")
-
-    raise RuntimeError("LLM inference failed. Check OPEN_ROUTER_KEY in backend/.env")
+    raise RuntimeError("LLM inference failed. Check GEMINI_API_KEY or OPEN_ROUTER_KEY in backend/.env")
 
 # Alias run_ollama to run_llm for backward compatibility
 run_ollama = run_llm
@@ -378,6 +409,49 @@ def update_api_key():
     os.environ["OPEN_ROUTER_KEY_3"] = key
     print(f"[INFO] 3rd OpenRouter key registered and active: {key[:14]}...", flush=True)
     return jsonify({"ok": True, "message": "Key saved and active!"})
+
+@app.route("/api/settings/gemini-key", methods=["POST"])
+def update_gemini_key_endpoint():
+    """Save a new Google Gemini API key directly to backend and root env files."""
+    import re
+    data = request.get_json(silent=True) or {}
+    key = (data.get("key") or "").strip()
+    if not key:
+        return jsonify({"ok": False, "error": "Gemini key cannot be empty"}), 400
+
+    backend_dir = os.path.dirname(__file__)
+    env_paths = [
+        os.path.join(backend_dir, ".env"),
+        os.path.join(backend_dir, "..", ".env"),
+    ]
+
+    for env_path in env_paths:
+        try:
+            content = ""
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+            if "GEMINI_API_KEY=" in content:
+                content = re.sub(r"GEMINI_API_KEY=.*", f"GEMINI_API_KEY={key}", content)
+            else:
+                content += f"\nGEMINI_API_KEY={key}\n"
+            if "Gemini_api_key=" in content:
+                content = re.sub(r"Gemini_api_key=.*", f"Gemini_api_key={key}", content)
+            else:
+                content += f"Gemini_api_key={key}\n"
+            if "VITE_GEMINI_API_KEY=" in content:
+                content = re.sub(r"VITE_GEMINI_API_KEY=.*", f"VITE_GEMINI_API_KEY={key}", content)
+            else:
+                content += f"VITE_GEMINI_API_KEY={key}\n"
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.write(content)
+        except Exception as e:
+            print(f"[WARN] Error updating {env_path}: {e}", flush=True)
+
+    os.environ["GEMINI_API_KEY"] = key
+    os.environ["Gemini_api_key"] = key
+    print(f"[INFO] Gemini API key updated and active: {key[:10]}...", flush=True)
+    return jsonify({"ok": True, "message": "Gemini API key saved and active!"})
 
 def generate_topical_response(clean_q: str, persona: str, hits: list) -> str:
     clean_q = clean_q.replace("**", "").strip()
@@ -550,7 +624,7 @@ def ask():
     """
     data = request.get_json(silent=True) or {}
     question = (data.get("question") or "").strip()
-    top_k = int(data.get("topK", 6))
+    top_k = int(data.get("topK", 3))  # Reduced from 6 to 3: cuts input tokens ~45%
     conversation = data.get("conversation")
 
     if not question:
@@ -581,7 +655,7 @@ def ask():
         prompt = build_llm_prompt(hits, question, conversation=conversation, persona=persona)
         
         try:
-            answer = run_ollama(prompt)
+            answer = run_llm(prompt, model_type="chat")
             # Remove double asterisks as requested
             answer = answer.replace("**", "")
         except Exception as llm_err:
@@ -617,7 +691,7 @@ def study_cheatsheet():
 
     context_text = ""
     try:
-        hits = query_chroma(collection, embedder, topic, top_k=6, conversation_id=conversation_ids)
+        hits = query_chroma(collection, embedder, topic, top_k=3, conversation_id=conversation_ids)
         if hits:
             context_text = "\n\n".join([h.get("content", "") for h in hits[:4]])
     except Exception as e:
@@ -644,7 +718,7 @@ Return ONLY a valid JSON object without markdown formatting or backticks:
   ]
 }}"""
     try:
-        raw_res = run_ollama(prompt).strip()
+        raw_res = run_llm(prompt, model_type="complex").strip()
         # Clean json if wrapped in ```json
         if raw_res.startswith("```"):
             raw_res = raw_res.split("```")[1]
@@ -689,7 +763,7 @@ def study_quiz():
 
     context_text = ""
     try:
-        hits = query_chroma(collection, embedder, topic, top_k=6, conversation_id=conversation_ids)
+        hits = query_chroma(collection, embedder, topic, top_k=3, conversation_id=conversation_ids)
         if hits:
             context_text = "\n\n".join([h.get("content", "") for h in hits[:4]])
     except Exception as e:
@@ -715,7 +789,7 @@ Return ONLY a valid JSON object without markdown formatting:
   ]
 }}"""
     try:
-        raw_res = run_ollama(prompt).strip()
+        raw_res = run_llm(prompt, model_type="complex").strip()
         if raw_res.startswith("```"):
             raw_res = raw_res.split("```")[1]
             if raw_res.startswith("json"):
